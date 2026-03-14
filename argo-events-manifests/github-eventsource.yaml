@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: EventSource
+metadata:
+  name: github 
+  namespace: argo-events
+spec:
+  service:
+    ports:
+      - port: 12000
+        targetPort: 12000
+  github:
+    # ----------------------------------------------------
+    # 1. Configuração da app-a
+    # ----------------------------------------------------
+    app-a:
+      owner: "gioufop"
+      repository: "app-a"
+      webhook:
+        endpoint: "/app-a"
+        port: "12000"
+        method: "POST"
+        url: "https://wan-subastringent-temika.ngrok-free.dev"
+      events:
+        - "push"
+      apiToken:
+        name: github-secret
+        key: secret
+
+    # ----------------------------------------------------
+    # 2. Configuração da app-b
+    # ----------------------------------------------------
+    app-b:
+      owner: "gioufop"
+      repository: "app-b"
+      webhook:
+        endpoint: "/app-b"
+        port: "12000"
+        method: "POST"
+        url: "https://wan-subastringent-temika.ngrok-free.dev"
+      events:
+        - "push"
+      apiToken:
+        name: github-secret
+        key: secret

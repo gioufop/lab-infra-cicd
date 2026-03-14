@@ -1,0 +1,35 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: app-b-gateway
+  namespace: app-b
+spec:
+  selector:
+    istio: ingressgateway # usa o Istio ingress gateway padrão
+  servers:
+  - port:
+      number: 8080
+      name: http
+      protocol: HTTP
+    hosts:
+    - "app-b.local"
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: app-b-virtualservice
+  namespace: app-b
+spec:
+  hosts:
+  - "app-b.local"
+  gateways:
+  - app-b-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/"
+    route:
+    - destination:
+        host: app-b-service
+        port:
+          number: 80

@@ -1,0 +1,152 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Sensor
+metadata:
+  name: app-b-sensor
+  namespace: argo-events
+spec:
+  template:
+    serviceAccountName: operate-workflow-sa
+  dependencies:
+    - name: github-dep
+      eventSourceName: github
+      eventName: app-b 
+      filters:
+        data:
+          - path: body.ref
+            type: string
+            value:
+              - refs/heads/main
+          - path: body.repository.name
+            type: string
+            value:
+              - app-b
+  triggers:
+    - template:
+        name: app-b-pipeline-trigger
+        k8s:
+          operation: create
+          source:
+            resource:
+              apiVersion: argoproj.io/v1alpha1
+              kind: Workflow
+              metadata:
+                generateName: app-b-pipeline-
+                namespace: argo
+              spec:
+                serviceAccountName: workflow-deployer-sa
+                entrypoint: main-pipeline
+                arguments:
+                  parameters:
+                    - name: commit-sha
+                
+                volumeClaimTemplates:
+                  - metadata:
+                      name: workdir
+                    spec:
+                      accessModes: [ "ReadWriteOnce" ]
+                      resources:
+                        requests:
+                          storage: 1Gi
+
+                templates:
+                  - name: main-pipeline
+                    steps:
+                      - - name: clone-repo
+                          template: clone
+                      - - name: test-python
+                          template: test
+                      - - name: build-image
+                          template: build
+                      - - name: deploy-app
+                          template: deploy
+
+                  # 0. Clonar o repositório
+                  - name: clone
+                    container:
+                      image: alpine/git
+                      command: [sh, -c]
+                      args: ["cd /workspace && rm -rf ./* && git clone https://github.com/gioufop/app-b.git ."]
+                      volumeMounts:
+                        - name: workdir
+                          mountPath: /workspace
+
+                  # 1. Executar testes Python com pytest
+                  - name: test
+                    container:
+                      image: python:3.11-alpine
+                      command: [sh, -c]
+                      args: ["cd /workspace && pip install -q -r requirements.txt && python -m pytest main_test.py -v"]
+                      volumeMounts:
+                        - name: workdir
+                          mountPath: /workspace
+
+                  # 2. Build da Imagem e Push pro Docker Hub
+                  - name: build
+                    volumes:
+                      - name: docker-config
+                        secret:
+                          secretName: dockerhub-secret
+                          items:
+                            - key: .dockerconfigjson
+                              path: config.json
+                    container:
+                      image: gcr.io/kaniko-project/executor:v1.9.0
+                      args:
+                        - "--context=/workspace"
+                        - "--dockerfile=/workspace/Dockerfile"
+                        - "--destination=gioufop/app-b:{{workflow.parameters.commit-sha}}"
+                        - "--destination=gioufop/app-b:latest"
+                      volumeMounts:
+                        - name: workdir
+                          mountPath: /workspace
+                        - name: docker-config
+                          mountPath: /kaniko/.docker/
+
+                  # 3. Deploy via kubectl com Istio
+                  - name: deploy
+                    container:
+                      image: bitnami/kubectl:latest
+                      command: [sh, -c]
+                      args:
+                        - |
+                          kubectl create namespace app-b --dry-run=client -o yaml | kubectl apply -f -
+                          kubectl label namespace app-b istio-injection=enabled --overwrite
+                          cat <<EOF | kubectl apply -n app-b -f -
+                          apiVersion: apps/v1
+                          kind: Deployment
+                          metadata:
+                            name: app-b-deployment
+                          spec:
+                            replicas: 1
+                            selector:
+                              matchLabels:
+                                app: app-b
+                            template:
+                              metadata:
+                                labels:
+                                  app: app-b
+                              spec:
+                                containers:
+                                - name: app-b
+                                  image: gioufop/app-b:{{workflow.parameters.commit-sha}}
+                                  ports:
+                                  - containerPort: 8080 
+                          ---
+                          apiVersion: v1
+                          kind: Service
+                          metadata:
+                            name: app-b-service
+                          spec:
+                            selector:
+                              app: app-b
+                            ports:
+                              - protocol: TCP
+                                port: 80
+                                targetPort: 8080
+                                name: http
+                          EOF
+          parameters:
+            - src:
+                dependencyName: github-dep
+                dataKey: body.after
+              dest: spec.arguments.parameters.0.value

@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: github-eventsource-ingress
+  namespace: argo-events
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /app-a
+        pathType: Exact
+        backend:
+          service:
+            name: github-eventsource-svc
+            port:
+              number: 12000
+      - path: /app-b
+        pathType: Exact
+        backend:
+          service:
+            name: github-eventsource-svc
+            port:
+              number: 12000

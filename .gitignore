@@ -1,0 +1,32 @@
+# Backups automáticos
+*.backup
+*.backup-*
+*.bak
+
+# Logs
+*.log
+/tmp/
+nohup.out
+
+# Arquivos temporários
+.DS_Store
+Thumbs.db
+*~
+
+# Configurações locais (não compartilhar)
+.env
+.env.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+
+# Ngrok
+ngrok.yml

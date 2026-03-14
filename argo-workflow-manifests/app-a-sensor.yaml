@@ -1,0 +1,169 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Sensor
+metadata:
+  name: app-a-sensor
+  namespace: argo-events
+spec:
+  template:
+    serviceAccountName: operate-workflow-sa
+  dependencies:
+    - name: github-dep
+      eventSourceName: github
+      eventName: app-a 
+      filters:
+        data:
+          - path: body.ref
+            type: string
+            value:
+              - refs/heads/main
+          - path: body.repository.name
+            type: string
+            value:
+              - app-a
+  triggers:
+    - template:
+        name: app-a-pipeline-trigger
+        k8s:
+          operation: create
+          source:
+            resource:
+              apiVersion: argoproj.io/v1alpha1
+              kind: Workflow
+              metadata:
+                generateName: app-a-pipeline-
+                namespace: argo
+              spec:
+                serviceAccountName: workflow-deployer-sa
+                entrypoint: main-pipeline
+                arguments:
+                  parameters:
+                    - name: commit-sha
+                
+                volumeClaimTemplates:
+                  - metadata:
+                      name: workdir
+                    spec:
+                      accessModes: [ "ReadWriteOnce" ]
+                      resources:
+                        requests:
+                          storage: 1Gi
+
+                templates:
+                  - name: main-pipeline
+                    steps:
+                      - - name: clone-repo
+                          template: clone
+                      - - name: test-go
+                          template: test
+                      - - name: build-image
+                          template: build
+                      - - name: deploy-app
+                          template: deploy
+
+                  # 0. Clonar o repositório
+                  # Ajustado para evitar o erro 128 limpando o diretório alvo
+                  - name: clone
+                    container:
+                      image: alpine/git
+                      command: [sh, -c]
+                      args: ["cd /workspace && rm -rf ./* && git clone https://github.com/gioufop/app-a.git ."]
+                      volumeMounts:
+                        - name: workdir
+                          mountPath: /workspace
+
+                  # 1. Executar testes Go
+                  - name: test
+                    container:
+                      image: golang:1.21-alpine
+                      command: [sh, -c]
+                      args: ["cd /workspace && go test ./..."]
+                      volumeMounts:
+                        - name: workdir
+                          mountPath: /workspace
+
+                  # 2. Build da Imagem e Push pro Docker Hub
+                  - name: build
+                    volumes:
+                      - name: docker-config
+                        secret:
+                          secretName: dockerhub-secret
+                          items:
+                            - key: .dockerconfigjson
+                              path: config.json
+                    container:
+                      image: gcr.io/kaniko-project/executor:v1.9.0
+                      args:
+                        - "--context=/workspace"
+                        - "--dockerfile=/workspace/Dockerfile"
+                        - "--destination=gioufop/app-a:{{workflow.parameters.commit-sha}}"
+                        - "--destination=gioufop/app-a:latest"
+                      volumeMounts:
+                        - name: workdir
+                          mountPath: /workspace
+                        - name: docker-config
+                          mountPath: /kaniko/.docker/
+
+                  # 3. Deploy via kubectl
+                  - name: deploy
+                    container:
+                      image: bitnami/kubectl:latest
+                      command: [sh, -c]
+                      args:
+                        - |
+                          kubectl create namespace app-a --dry-run=client -o yaml | kubectl apply -f -
+                          cat <<EOF | kubectl apply -n app-a -f -
+                          apiVersion: apps/v1
+                          kind: Deployment
+                          metadata:
+                            name: app-a-deployment
+                          spec:
+                            replicas: 1
+                            selector:
+                              matchLabels:
+                                app: app-a
+                            template:
+                              metadata:
+                                labels:
+                                  app: app-a
+                              spec:
+                                containers:
+                                - name: app-a
+                                  image: gioufop/app-a:{{workflow.parameters.commit-sha}}
+                                  ports:
+                                  - containerPort: 8080 
+                          ---
+                          apiVersion: v1
+                          kind: Service
+                          metadata:
+                            name: app-a-service
+                          spec:
+                            selector:
+                              app: app-a
+                            ports:
+                              - protocol: TCP
+                                port: 80
+                                targetPort: 8080 
+                          ---
+                          apiVersion: networking.k8s.io/v1
+                          kind: Ingress
+                          metadata:
+                            name: app-a-ingress
+                          spec:
+                            ingressClassName: nginx
+                            rules:
+                            - host: app-a.local
+                              http:
+                                paths:
+                                - path: /
+                                  pathType: Prefix
+                                  backend:
+                                    service:
+                                      name: app-a-service
+                                      port:
+                                        number: 80
+                          EOF
+          parameters:
+            - src:
+                dependencyName: github-dep
+                dataKey: body.after
+              dest: spec.arguments.parameters.0.value
