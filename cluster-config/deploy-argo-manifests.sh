@@ -37,7 +37,7 @@ echo ""
 # ==================================================
 echo "🔧 Aplicando RBACs do Argo Workflows..."
 
-kubectl apply -f ../argo-worflow-manifests/workflow-deployer-rbac.yaml
+kubectl apply -f ../argo-workflow-manifests/workflow-deployer-rbac.yaml
 
 echo "⏳ Aguardando ServiceAccount 'workflow-deployer-sa' ficar disponível..."
 sleep 3
@@ -52,7 +52,7 @@ echo ""
 # ==================================================
 echo "🔧 Aplicando RBACs do Argo Events..."
 
-kubectl apply -f ../argo-worflow-manifests/sensor-rbac.yaml
+kubectl apply -f ../argo-workflow-manifests/sensor-rbac.yaml
 
 echo "⏳ Aguardando ServiceAccount 'operate-workflow-sa' ficar disponível..."
 sleep 3
@@ -238,7 +238,7 @@ echo ""
 # ==================================================
 echo "🔧 Aplicando Sensor para app-a..."
 
-kubectl apply -f ../argo-worflow-manifests/app-a-sensor.yaml
+kubectl apply -f ../argo-workflow-manifests/app-a-sensor.yaml
 
 echo "⏳ Aguardando Sensor ficar pronto..."
 sleep 10
@@ -258,7 +258,7 @@ echo ""
 # ==================================================
 echo "🔧 Aplicando Sensor para app-b..."
 
-kubectl apply -f ../argo-worflow-manifests/app-b-sensor.yaml
+kubectl apply -f ../argo-workflow-manifests/app-b-sensor.yaml
 
 echo "⏳ Aguardando Sensor ficar pronto..."
 sleep 10
@@ -289,7 +289,7 @@ echo ""
 # ==================================================
 echo "🔧 Aplicando Istio Gateway e VirtualService para app-b..."
 
-kubectl apply -f ../argo-worflow-manifests/app-b-istio.yaml
+kubectl apply -f ../argo-workflow-manifests/app-b-istio.yaml
 
 echo "✅ Istio Gateway e VirtualService aplicados!"
 echo ""
@@ -299,7 +299,7 @@ echo ""
 # ==================================================
 echo "🔧 Aplicando Ingress do Argo Workflows..."
 
-kubectl apply -f ../argo-worflow-manifests/argo-server-ingress.yaml
+kubectl apply -f ../argo-workflow-manifests/argo-server-ingress.yaml
 
 echo "⏳ Aguardando Ingress ficar pronto..."
 sleep 3

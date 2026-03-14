@@ -76,7 +76,7 @@ Pipeline automatizado de CI/CD com Kubernetes, Argo Workflows e Argo Events.
 
 > **Nginx:** EventSource usa Nginx Ingress para receber webhooks do GitHub via Ngrok.
 
-### 🔄 Manifestos de Workflows (`argo-worflow-manifests/`)
+### 🔄 Manifestos de Workflows (`argo-workflow-manifests/`)
 
 | Arquivo | Função | Ingress |
 |---------|--------|---------|
@@ -108,13 +108,13 @@ repository: "app-a"              # ou "app-b"
 ```
 
 #### Docker Hub nos Sensors
-Arquivo: `argo-worflow-manifests/app-a-sensor.yaml` (linha ~94)
+Arquivo: `argo-workflow-manifests/app-a-sensor.yaml` (linha ~94)
 ```yaml
 --destination=SEU_USUARIO_DOCKERHUB/app-a:{{workflow.parameters.commit-sha}}
               ^^^^^^^^^^^^^^^^^^^^
 ```
 
-Arquivo: `argo-worflow-manifests/app-b-sensor.yaml` (linha ~94)
+Arquivo: `argo-workflow-manifests/app-b-sensor.yaml` (linha ~94)
 ```yaml
 --destination=SEU_USUARIO_DOCKERHUB/app-b:{{workflow.parameters.commit-sha}}
               ^^^^^^^^^^^^^^^^^^^^

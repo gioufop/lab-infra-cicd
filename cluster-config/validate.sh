@@ -302,14 +302,14 @@ if kubectl get gateway app-b-gateway -n app-b &>/dev/null; then
   check_ok "Gateway 'app-b-gateway' existe"
 else
   check_warning "Gateway 'app-b-gateway' não encontrado"
-  echo "   Execute: kubectl apply -f argo-worflow-manifests/app-b-istio.yaml"
+  echo "   Execute: kubectl apply -f argo-workflow-manifests/app-b-istio.yaml"
 fi
 
 if kubectl get virtualservice app-b-virtualservice -n app-b &>/dev/null; then
   check_ok "VirtualService 'app-b-virtualservice' existe"
 else
   check_warning "VirtualService 'app-b-virtualservice' não encontrado"
-  echo "   Execute: kubectl apply -f argo-worflow-manifests/app-b-istio.yaml"
+  echo "   Execute: kubectl apply -f argo-workflow-manifests/app-b-istio.yaml"
 fi
 
 echo ""
